@@ -357,7 +357,7 @@ int readDataFromSocket(int socketFD) {
     int readLength;
     gettimeofday(&recvBufferTime,0);
     count = recv(socketFD, (char *) &readLength, sizeof(int), 0);
-    printf("readLength: %d\n", readLength);
+    //printf("readLength: %d\n", readLength);
     if (count != sizeof(int)) {
         //perror("recv\n");
         droppedConnection();
