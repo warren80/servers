@@ -56,7 +56,7 @@ int main(int argc, char * argv[]) {
     for (i = 0; i != connections; ++i) {
         newThread();
     }
-    sleep(10);
+    sleep(ts.delay + 10);
     return 0;
 }
 
