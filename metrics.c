@@ -38,27 +38,14 @@ void metricLoop() {
     if (fp == 0) {
         printf("failed to open");
     }
+    fprintf(fp,"TimeElapsed,CurrentConnections,RecentResponces/s,AvgDelay,data/s");
     while(1) {
-
-        //if (sigwait(&set, &sig) != 0) {
-        //    perror("sigwait error");
-       //}
-
-
         sleep(1);
-
         gettimeofday(&current, 0);
-        fprintf(fp, "%d,%d,%lu,%lu\n", (int) delay(old,current),
-                getRecentConnections(), getRecentResponces(), getRecentData());
+        fprintf(fp, "%d,%d,%d,%lu,%lu\n", (int) delay(old,current),
+                getRecentConnections(), getResponces(), getRecentResponces(), getRecentData());
         fflush(fp);
-        //printf("%d,%d,%lu,%lu\n", (int) delay(old,current),
-        //        getRecentConnections(), getRecentResponces(), getRecentData());
         metricUpdate();
-        //printf(
-        //just printing so don't realy care about threadsafe;
-
-        //TODO METRICS STUFF
-        //printf("metrics happening here: %d\n", (int) pthread_self());
     }
 }
 
@@ -126,6 +113,10 @@ void metricUpdate() {
 
 int getRecentConnections() {
     return result.connections;
+}
+
+int getResponces() {
+    return result.responces - oldResult.responces;
 }
 
 long getRecentResponces() {

@@ -7,8 +7,8 @@ epoll: mainEpoll.o epollServer.o sock.o metrics.o
 select: mainSelect.o selectServer.o common.o select.o metrics.o sock.o
 	$(CC) -o s.out mainSelect.o selectServer.o select.o common.o metrics.o sock.o
 	rm -f *.o
-process: mainProcess.o process.o processServer.o common.o metrics.o sock.o
-	$(CC) -o s.out mainProcess.o process.o processServer.o common.o metrics.o sock.o
+process: process.o metrics.o sock.o
+	$(CC) $(CFLAGS) -o s.out process.o metrics.o sock.o
 	rm -f *.o
 client: client.o metrics.o sock.o
 	$(CC) $(CFLAGS) -o c.out client.o metrics.o sock.o

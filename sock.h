@@ -12,12 +12,12 @@
 #include <arpa/inet.h>
 
 int makeNonBlockingSocket (int socketFD);
-int bindSocket(int socketFD, int port, const char *ip);
+int bindSocket(int socketFD, int port);
 int setSocketReuse(int socketFD);
 int listenSocket(int socketFD, int sizeOfQueue);
 int createSocket();
 int acceptSocket(int socketFD, struct sockaddr_in* cliAddr);
 int connectSocket(int socketFD, int port, const char* ip);
-int setupServerTCPSocket(int port, int workers, const char* ip);
+int setupServerTCPSocket(int port);
 
 #endif

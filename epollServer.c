@@ -123,8 +123,8 @@ void processJob(int jobId, int epollFD, int socketFD) {
         processIncomingNewSocket(socketFD, epollFD);
         return;
     } else {
-        if (readDataFromSocket(events[jobId].data.fd)) {
-        }
+        readDataFromSocket(events[jobId].data.fd);
+
     }
 }
 
@@ -222,8 +222,10 @@ int readDataFromSocket(int socketFD) {
     int readLength;
     gettimeofday(&recvBufferTime,0);
     count = recv(socketFD, (char *) &readLength, sizeof(int), 0);
+    printf("readLength: %d\n", readLength);
     if (count != sizeof(int)) {
         //perror("recv\n");
+        droppedConnection();
         return 0;
     }
     while (1) {
@@ -256,8 +258,9 @@ int readDataFromSocket(int socketFD) {
     if (readLength != count) {
         perror("send");
     }
-    gettimeofday(&recvBufferTime,0);
+    gettimeofday(&sendBufferTime,0);
     setResponce(delay(sendBufferTime,recvBufferTime));
+    setData(count);
     return 0;
 }
 

@@ -1,10 +1,10 @@
 #include "sock.h"
 
-int setupServerTCPSocket(int port, int workers, const char *ip) {
+int setupServerTCPSocket(int port) {
     int socketFD;
     if ((socketFD = createSocket(port)) == -1) {return -1;}
     if (setSocketReuse(socketFD) == -1) {return -1;}
-    if (bindSocket(socketFD, port, ip) == -1) {return -1;}
+    if (bindSocket(socketFD, port) == -1) {return -1;}
     if (listenSocket(socketFD, 5) == -1) {return -1;}
 
     return socketFD;
@@ -27,12 +27,12 @@ int makeNonBlockingSocket (int socketFD) {
     return 1;
 }
 
-int bindSocket(int socketFD, int port, const char *ip) {
+int bindSocket(int socketFD, int port) {
     struct sockaddr_in sin;
     memset((char *) &sin, 0, sizeof(sin));
     sin.sin_port = htons(port);
     sin.sin_addr.s_addr = 0;
-    sin.sin_addr.s_addr =  inet_addr(ip);
+    sin.sin_addr.s_addr =  INADDR_ANY;
     sin.sin_family = AF_INET;
     if(bind(socketFD, (struct sockaddr *)&sin,
             sizeof(struct sockaddr_in) ) != 0) {
@@ -75,8 +75,8 @@ int acceptSocket(int socketFD, struct sockaddr_in* cliAddr) {
     socklen_t cliLen = sizeof(struct sockaddr_in);
     if ((newSock = accept(socketFD,
                           (struct sockaddr *) &cliAddr, &cliLen)) < 0) {
-        perror("Error on accept");
-        return -1;
+        perror("Error on accept\n");
+        exit(1);
     }
     return newSock;
 }

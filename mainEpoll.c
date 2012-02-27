@@ -5,9 +5,8 @@
 
 int main() {
 
-    blockSignals();
+    //blockSignals();
     startServer();
-    //alarm(1); //sets the first timer for metrics.
     return 0;
 
 }

@@ -24,6 +24,7 @@ void setData(long);
 void droppedConnection();
 void newConnection();
 
+int getResponces();
 long getRecentResponces();
 int getRecentConnections();
 long getRecentData();

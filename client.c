@@ -106,6 +106,7 @@ void recBuf(int socketFD) {
         printf("send mismatch data sent: %d\n", count);
         return;
     }
+    setData(count);
 }
 
 
