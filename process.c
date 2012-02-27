@@ -21,13 +21,11 @@ void acceptLoop(int socketFD) {
     int cliSocket;
     while(1) {
         cliSocket = acceptSocket(socketFD, &cli_addr);
-        printf("cliSocket %d\n", cliSocket);
         newThread(cliSocket);
     }
 }
 
 int sendBuf(int socketFD, char *buf[MAXBUFFSIZE], int length) {
-    printf("e\n");
     int count = send(socketFD, *buf, length, 0);
     if (count != length) {
         printf("f\n");
@@ -42,13 +40,10 @@ int recvBuf(int socketFD, char **buf) {
     count = recv(socketFD, (char *) &length, sizeof(int), 0);
     //count = recv(socketFD, (char *) &readLength, sizeof(int), 0);
     if (count != sizeof(int)) {
-        printf("a\n");
         return -1;
     }
-    //printf("sizeof int: %d\n", sizeof(int));
-    printf("count: %d, length: %d\n", count);
     count = recv(socketFD, *buf, length, 0);
-    if (count != 5) {
+    if (count != length) {
         return -1;
     }
     return length;
@@ -57,7 +52,6 @@ int recvBuf(int socketFD, char **buf) {
 
 void* thread_fn(void *sockid) {
     int socketFD = (int) sockid;
-    printf("cliSocket %d\n", socketFD);
     struct timeval recvBufferTime, sendBufferTime;
     char *buf = malloc(MAXBUFFSIZE);
     newConnection();

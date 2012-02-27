@@ -4,8 +4,8 @@ CFLAGS=-Wall -lpthread
 epoll: mainEpoll.o epollServer.o sock.o metrics.o
 	$(CC) $(CFLAGS) -o s.out mainEpoll.o epollServer.o sock.o metrics.o
 	rm -f *.o
-select: mainSelect.o selectServer.o common.o select.o metrics.o sock.o
-	$(CC) -o s.out mainSelect.o selectServer.o select.o common.o metrics.o sock.o
+select: selectServer.o metrics.o sock.o
+	$(CC) $(CFLAGS) -o s.out selectServer.o metrics.o sock.o
 	rm -f *.o
 process: process.o metrics.o sock.o
 	$(CC) $(CFLAGS) -o s.out process.o metrics.o sock.o

@@ -38,7 +38,7 @@ void metricLoop() {
     if (fp == 0) {
         printf("failed to open");
     }
-    fprintf(fp,"TimeElapsed,CurrentConnections,RecentResponces/s,AvgDelay,data/s");
+    fprintf(fp,"TimeElapsed,CurrentConnections,RecentResponces/s,AvgDelay,data/s\n");
     while(1) {
         sleep(1);
         gettimeofday(&current, 0);
