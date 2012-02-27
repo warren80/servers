@@ -1,5 +1,55 @@
 #include "epollServer.h"
 
+
+/*---------------------------------------------------------------------------------------
+--	SOURCE FILE:		epollServer.c
+--
+--	PROGRAM:		Server Architecture Stress Tests: Epoll Server
+--
+--	FUNCTIONS:              PWORKERSTRUCT getSemStruct()
+--                              void setupSemaphoreStruct(PWORKERSTRUCT ss)
+--                              void newThread(void *role)
+--                              void blockSignals()
+--                              void* thread_fn(void *structure)
+--                              void processJob(int jobId, int epollFD, int socketFD)
+--                              void eventLoop(PWORKERSTRUCT semStruct)
+--                              void workerLoop(PWORKERSTRUCT semStruct)
+--                              void startThreads(PWORKERSTRUCT semStruct)
+--                              void startServer()
+--                              int readDataFromSocket(int socketFD)
+--                              int getAddressResult(int port, struct addrinfo **result)
+--                              void processIncomingNewSocket(int socketFD, int epollFD)
+--                              int validateSocket(int port)
+--                              void bindandListenSocket(int socketFD)
+--                              int createEPoll()
+--                              void setEPollSocket(int epollFD, int socketFD,
+--                                     struct epoll_event **pevents)
+--
+--
+--	DATE:			Febuary 26, 2011
+--
+--
+--	DESIGNERS:		Warren Voelkl
+--
+--	PROGRAMMERS:		Warren Voelkl
+--
+--	NOTES:
+--	Creates an Epoll echo server which uses a thread pool to increase
+--      the concurrency in the program.  The epoll call returns number of jobs
+--      to be completed upon returning from the epoll wait function.  This number
+--      is used to increment a counting semephore which unblocks the threadpool
+--      and alows work to procead.  Upon compleation of the job list the epoll loop
+--      is unblocked and the process begins again.  This design is ineficient when there
+--      are a low number of sockets connected but it is much more scalable at
+--      socket connections upwards of 10000 connections.
+--
+--      While performing its task the program records the following stats
+--          - Average turnaround time in milliseconds
+--          - Data recieved per second
+--          - Maintained Socket connections
+--          - Responces recieved per second
+---------------------------------------------------------------------------------------*/
+
 void semOperation(int id, struct sembuf *operation);
 PWORKERSTRUCT getSemStruct();
 void setupSemaphoreStruct(PWORKERSTRUCT ss);
@@ -10,7 +60,17 @@ void processJob(int jobId, int epollFD, int socketFD);
 struct epoll_event *events; //made global protected via semaphores
 
 
-
+/*---------------------------------------------------------------------------------------
+--	FUNCTION: PWORKERSTRUCT getSemStruct()
+--
+--      RETURNS: a memory structure loaded with semephores used to protect the
+--               thread pool and running of the epoll wait system call.
+--
+--	NOTES:
+--      In addition to getting a semaphor from the OS the function Creates semephore
+--      structures which are used to increment and decrement the various semephores
+--      and mutexs protecting the shared variables used in maintaining the threadpool
+---------------------------------------------------------------------------------------*/
 PWORKERSTRUCT getSemStruct() {
     PWORKERSTRUCT ss = (PWORKERSTRUCT) malloc(sizeof(WORKERSTRUCT));
 
@@ -51,6 +111,14 @@ PWORKERSTRUCT getSemStruct() {
     return ss;
 }
 
+/*---------------------------------------------------------------------------------------
+--	FUNCTION: void setupSemaphoreStruct(PWORKERSTRUCT ss)
+--
+--      RETURNS: void
+--
+--	NOTES:
+--      Initializes the mutexs and semephores used in managing the thread pool
+---------------------------------------------------------------------------------------*/
 void setupSemaphoreStruct(PWORKERSTRUCT ss) {
     union semun {
         int val;
@@ -70,6 +138,14 @@ void setupSemaphoreStruct(PWORKERSTRUCT ss) {
     }
 }
 
+/*---------------------------------------------------------------------------------------
+--	void newThread(void *role)
+--
+--      RETURNS: void
+--
+--	NOTES:
+--      Initializes the the metric and worker threads
+---------------------------------------------------------------------------------------*/
 void newThread(void *role) {
     int result;
     //printf("role: %d\n", role);
@@ -81,6 +157,15 @@ void newThread(void *role) {
     }
 }
 
+/*---------------------------------------------------------------------------------------
+--	void blockSignals()
+--
+--      RETURNS: void
+--
+--	NOTES:
+--      blocks the alarm signal to the program so that it can be caught in the metric
+--      thread only.
+---------------------------------------------------------------------------------------*/
 void blockSignals() {
     sigset_t set;
     sigemptyset(&set);
@@ -90,11 +175,15 @@ void blockSignals() {
     }
 }
 
-
-
-
-
-
+/*---------------------------------------------------------------------------------------
+--	void* thread_fn(void *structure)
+--
+--      RETURNS: void
+--
+--	NOTES:
+--      blocks the alarm signal to the program so that it can be caught in the metric
+--      thread only.
+---------------------------------------------------------------------------------------*/
 void* thread_fn(void *structure) {
     PTHREADSETUPSTRUCT tss = (PTHREADSETUPSTRUCT) structure;
     //printf("role: %d\n", tss->threadType);
@@ -112,6 +201,14 @@ void* thread_fn(void *structure) {
     return 0;
 }
 
+/*---------------------------------------------------------------------------------------
+--	FUNCTION: void processJob(int jobId, int epollFD, int socketFD)
+--
+--      RETURNS: 0
+--
+--	NOTES:
+--      switches between binding dropping and reading incoming events on a socket.
+---------------------------------------------------------------------------------------*/
 void processJob(int jobId, int epollFD, int socketFD) {
     if ((events[jobId].events & EPOLLERR) ||
             (events[jobId].events & EPOLLHUP) ||
@@ -128,6 +225,20 @@ void processJob(int jobId, int epollFD, int socketFD) {
     }
 }
 
+/*---------------------------------------------------------------------------------------
+--	FUNCTION: void eventLoop(PWORKERSTRUCT semStruct)
+--
+--      RETURNS: 0
+--
+--	NOTES:
+--      Decrements the epoll mutex before running epoll_wait.  It then increments a
+--      counting semephore that release the worker threads to process their jobs.
+--      the loop does not unblock until all worker threads have fully completed their
+--      tasks this prevents multiple threads working on the same event.
+--
+--      In a later iteration of this function the mutex could be removed and a hash lookup
+--      table may be of some use in decreasing system calls by removing mutex calls.
+---------------------------------------------------------------------------------------*/
 void eventLoop(PWORKERSTRUCT semStruct) {
     int jobQueue;
     while (TRUE) {
@@ -141,6 +252,17 @@ void eventLoop(PWORKERSTRUCT semStruct) {
     free (events);//never reached
 }
 
+/*---------------------------------------------------------------------------------------
+--	FUNCTION: void workerLoop(PWORKERSTRUCT semStruct)
+--
+--      RETURNS: void
+--
+--	NOTES:
+--      Begins by decrementing a counting semephore then grabbing a job from the events
+--      structure.  It protects the event number with mith mutexs and runs a check upon.
+--      compleation of the job to see if it was the last job to complete.  The last
+--      job to complete then unlocks the epoll mutex which starts the whole process again
+---------------------------------------------------------------------------------------*/
 void workerLoop(PWORKERSTRUCT semStruct) {
     int socketFD = semStruct->socketFD;
     int epollFD = semStruct->epollFD;
@@ -165,7 +287,14 @@ void workerLoop(PWORKERSTRUCT semStruct) {
     }
 }
 
-
+/*---------------------------------------------------------------------------------------
+--	FUNCTION: void startThreads(PWORKERSTRUCT semStruct)
+--
+--      RETURNS: void
+--
+--	NOTES:
+--      creates the worker threads
+---------------------------------------------------------------------------------------*/
 void startThreads(PWORKERSTRUCT semStruct) {
     int i;
     PTHREADSETUPSTRUCT ptss = (PTHREADSETUPSTRUCT) malloc(sizeof(THREADSETUPSTRUCT));
@@ -180,16 +309,14 @@ void startThreads(PWORKERSTRUCT semStruct) {
     }
 }
 
-int parseClientRequest(int socketFD, char * buffer, int length) {
-    return 0;
-}
-
-
-
-
-
-
-//probably done
+/*---------------------------------------------------------------------------------------
+--	FUNCTION: void startServer()
+--
+--      RETURNS: void
+--
+--	NOTES:
+--      Opens the initial socket and starts the running of the server.
+---------------------------------------------------------------------------------------*/
 void startServer() {
     PWORKERSTRUCT semStruct = getSemStruct();
     setupSemaphoreStruct(semStruct);
@@ -209,7 +336,15 @@ void startServer() {
     close(socketFD);
 }
 
-
+/*---------------------------------------------------------------------------------------
+--	FUNCTION: int readDataFromSocket(int socketFD)
+--
+--      RETURNS: void
+--
+--	NOTES:
+--      Reads from a socket then echos the data back on the socket.  During this
+--      it updates the metrics data
+---------------------------------------------------------------------------------------*/
 int readDataFromSocket(int socketFD) {
     ssize_t length = 0;
     char buf[MAXBUFFSIZE];
@@ -264,6 +399,14 @@ int readDataFromSocket(int socketFD) {
     return 0;
 }
 
+/*---------------------------------------------------------------------------------------
+--	FUNCTION: int getAddressResult(int port, struct addrinfo **result)
+--
+--      RETURNS: void
+--
+--	NOTES:
+--      Used for testing purposes only.  Outputs the client data upon connection.
+---------------------------------------------------------------------------------------*/
 int getAddressResult(int port, struct addrinfo **result) {
     struct addrinfo hints;
     int returnValue;
@@ -281,6 +424,14 @@ int getAddressResult(int port, struct addrinfo **result) {
     return 0;
 }
 
+/*---------------------------------------------------------------------------------------
+--	FUNCTION: int getAddressResult(int port, struct addrinfo **result)
+--
+--      RETURNS: void
+--
+--	NOTES:
+--      Used for testing purposes only.  Outputs the client data upon connection.
+---------------------------------------------------------------------------------------*/
 int createAndBind(int port) {
 
     struct addrinfo *result, *rp;
@@ -308,6 +459,15 @@ int createAndBind(int port) {
     return socketFD;
 }
 
+/*---------------------------------------------------------------------------------------
+--	FUNCTION: void processIncomingNewSocket(int socketFD, int epollFD)
+--
+--      RETURNS: void
+--
+--	NOTES:
+--      Upon connection of a new socket this function adds the new socket descriptor
+--      to the events list where it will be able to be monitored by the epoll_wait call.
+---------------------------------------------------------------------------------------*/
 void processIncomingNewSocket(int socketFD, int epollFD) {
     while (1) {
         struct epoll_event event;
@@ -352,6 +512,14 @@ void processIncomingNewSocket(int socketFD, int epollFD) {
     }
 }
 
+/*---------------------------------------------------------------------------------------
+--	FUNCTION: int validateSocket(int port)
+--
+--      RETURNS: void
+--
+--	NOTES:
+--      Wrapper for the bind function.
+---------------------------------------------------------------------------------------*/
 int validateSocket(int port) {
     int socketFD = createAndBind (port);
     if (socketFD == -1) {
@@ -360,6 +528,14 @@ int validateSocket(int port) {
     return socketFD;
 }
 
+/*---------------------------------------------------------------------------------------
+--	FUNCTION: void bindandListenSocket(int socketFD)
+--
+--      RETURNS: void
+--
+--	NOTES:
+--      Wrapper for the listen function
+---------------------------------------------------------------------------------------*/
 void bindandListenSocket(int socketFD) {
     int result;
     makeNonBlockingSocket (socketFD);
@@ -371,6 +547,14 @@ void bindandListenSocket(int socketFD) {
     }
 }
 
+/*---------------------------------------------------------------------------------------
+--	FUNCTION: int createEPoll()
+--
+--      RETURNS: void
+--
+--	NOTES:
+--      Wrapper for the epoll create 1 function
+---------------------------------------------------------------------------------------*/
 int createEPoll() {
     int epollFD = epoll_create1(0);
     if (epollFD == -1) {
@@ -380,6 +564,14 @@ int createEPoll() {
     return epollFD;
 }
 
+/*---------------------------------------------------------------------------------------
+--	FUNCTION: void setEPollSocket(int epollFD, int socketFD, struct epoll_event **pevents)
+--
+--      RETURNS: void
+--
+--	NOTES:
+--      a wrapper for the epoll_ctl function
+---------------------------------------------------------------------------------------*/
 void setEPollSocket(int epollFD, int socketFD, struct epoll_event **pevents) {
     struct epoll_event event;
     int result;

@@ -5,6 +5,39 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+/*---------------------------------------------------------------------------------------
+--	SOURCE FILE:		client.c
+--
+--	PROGRAM:		Server Architecture Stress Tests: Client
+--
+--	FUNCTIONS:              int main(int argc, char * argv[])
+--                              void* metrics_fn(void *structure)
+--                              void startMetricsThread()
+--                              void newThread()
+--                              void sendBuf(int socketFD)
+--                              void recBuf(int socketFD)
+--                              void* thread_fn(void *structure)
+--
+--	DATE:			Febuary 26, 2011
+--
+--
+--	DESIGNERS:		Warren Voelkl
+--
+--	PROGRAMMERS:		Warren Voelkl
+--
+--	NOTES:
+--	Creates a multithreaded client one thread per socket connection.
+--      It connects to a server specified from the commandline then procededs
+--      to spawn a user specified amount of threads wich send a user specified
+--      length string to the server and then waits for a responce.
+--
+--      While performing its task the program records the following stats
+--          - Average turnaround time in milliseconds
+--          - Data recieved per second
+--          - Maintained Socket connections
+--          - Responces recieved per second
+---------------------------------------------------------------------------------------*/
+
 
 #define PORT 8888
 
@@ -23,6 +56,15 @@ void* metrics_fn(void *structure);
 
 THREADSTRUCT ts;
 
+/*---------------------------------------------------------------------------------------
+--	FUNCTION: int main(int argc, char * argv[])
+--
+--      RETURNS: 0 on success
+--               1 on invalid command line arguments
+--
+--	NOTES:
+--      Entry point into the program parses commandline output
+---------------------------------------------------------------------------------------*/
 int main(int argc, char * argv[]) {
     int i, connections;
     struct hostent *hp;
@@ -60,13 +102,28 @@ int main(int argc, char * argv[]) {
     return 0;
 }
 
-
+/*---------------------------------------------------------------------------------------
+--	FUNCTION: void* metrics_fn(void *structure)
+--
+--      RETURNS: 0
+--
+--	NOTES:
+--      used as a function point in creating the thread which outputs the metric data.
+---------------------------------------------------------------------------------------*/
 void* metrics_fn(void *structure) {
     ++structure;
     metricLoop();
     return 0;
 }
 
+/*---------------------------------------------------------------------------------------
+--	FUNCTION: void startMetricsThread()
+--
+--      RETURNS: 0
+--
+--	NOTES:
+--      creates a new thread which will handle the metric data of the program
+---------------------------------------------------------------------------------------*/
 void startMetricsThread() {
     int result;
     void *blah = 0;
@@ -79,6 +136,14 @@ void startMetricsThread() {
     }
 }
 
+/*---------------------------------------------------------------------------------------
+--	FUNCTION: void newThread()
+--
+--      RETURNS: 0
+--
+--	NOTES:
+--      creates a new thread which will connect to a server
+---------------------------------------------------------------------------------------*/
 void newThread() {
     int result;
     void *blah = 0;
@@ -91,6 +156,15 @@ void newThread() {
     }
 }
 
+/*---------------------------------------------------------------------------------------
+--	FUNCTION: void sendBuf(int socketFD)
+--
+--      RETURNS: 0
+--
+--	NOTES:
+--      Sends a variable length string as defined by the command line arguments to the
+--      server.
+---------------------------------------------------------------------------------------*/
 void sendBuf(int socketFD) {
     int count = send(socketFD, ts.sndbuf, ts.length + sizeof(int), 0);
     if (count != ts.length + sizeof(int)) {
@@ -99,6 +173,14 @@ void sendBuf(int socketFD) {
     }
 }
 
+/*---------------------------------------------------------------------------------------
+--	FUNCTION: void recBuf(int socketFD)
+--
+--      RETURNS: 0
+--
+--	NOTES:
+--      Recieves the echoed string back from the server and updates the metric thread.
+---------------------------------------------------------------------------------------*/
 void recBuf(int socketFD) {
     char rcBuffer[ts.length];
     int count = recv(socketFD, rcBuffer, ts.length, 0);
@@ -109,7 +191,16 @@ void recBuf(int socketFD) {
     setData(count);
 }
 
-
+/*---------------------------------------------------------------------------------------
+--	FUNCTION: void* thread_fn(void *structure)
+--
+--      RETURNS: 0
+--
+--	NOTES:
+--      The thread loop which connects to the server and initiates sending and recieving
+--      calls from the server.  In addition function updates the metrics on the delay
+--      between sending the data request and recieving the reply.
+---------------------------------------------------------------------------------------*/
 void* thread_fn(void *structure) {
     int socketFD, i;
     ++structure;
