@@ -36,24 +36,21 @@ int sendBuf(int socketFD, char *buf[MAXBUFFSIZE], int length) {
     return 1;
 }
 
-int recvBuf(int socketFD, char *buf[MAXBUFFSIZE]) {
-    ssize_t length = 0;
+int recvBuf(int socketFD, char **buf) {
+    int length = 0;
     ssize_t count = 0;
-    //count = recv(socketFD, (char *) &length, sizeof(int), 0);
+    count = recv(socketFD, (char *) &length, sizeof(int), 0);
     //count = recv(socketFD, (char *) &readLength, sizeof(int), 0);
-    //if (count != sizeof(int)) {
-    //    printf("a\n");
-    //    return -1;
-    //}
-    //printf("sizeof int: %d\n", sizeof(int));
-    //printf("count: %d, length: %d\n", count);
-    count = recv(socketFD, *buf, 5, 0);
-    printf("count %d\n", count);
-    if (count != 5) {
-        printf("c\n");
+    if (count != sizeof(int)) {
+        printf("a\n");
         return -1;
     }
-    printf("d\n");
+    //printf("sizeof int: %d\n", sizeof(int));
+    printf("count: %d, length: %d\n", count);
+    count = recv(socketFD, *buf, length, 0);
+    if (count != 5) {
+        return -1;
+    }
     return length;
 
 }
@@ -62,7 +59,7 @@ void* thread_fn(void *sockid) {
     int socketFD = (int) sockid;
     printf("cliSocket %d\n", socketFD);
     struct timeval recvBufferTime, sendBufferTime;
-    char buf[MAXBUFFSIZE];
+    char *buf = malloc(MAXBUFFSIZE);
     newConnection();
     int length;
     while(1) {

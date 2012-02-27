@@ -2,7 +2,7 @@
 
 int setupServerTCPSocket(int port) {
     int socketFD;
-    if ((socketFD = createSocket(port)) == -1) {return -1;}
+    if ((socketFD = createSocket()) == -1) {return -1;}
     if (setSocketReuse(socketFD) == -1) {return -1;}
     if (bindSocket(socketFD, port) == -1) {return -1;}
     if (listenSocket(socketFD, 5) == -1) {return -1;}
@@ -31,12 +31,11 @@ int bindSocket(int socketFD, int port) {
     struct sockaddr_in sin;
     memset((char *) &sin, 0, sizeof(sin));
     sin.sin_port = htons(port);
-    sin.sin_addr.s_addr = 0;
     sin.sin_addr.s_addr =  INADDR_ANY;
     sin.sin_family = AF_INET;
     if(bind(socketFD, (struct sockaddr *)&sin,
             sizeof(struct sockaddr_in) ) != 0) {
-        printf("error binding socket");
+        printf("error binding socket\n");
         return -1;
     }
     return 1;
@@ -46,7 +45,7 @@ int setSocketReuse(int socketFD) {
     int reuse = 1;
     if(setsockopt(socketFD, SOL_SOCKET, SO_REUSEADDR,
                   (char *)&reuse, sizeof(reuse)) != 0) {
-        perror("Setting SO_REUSEADDR error");
+        perror("Setting SO_REUSEADDR error\n");
         return -1;
     }
     return 1;
@@ -56,7 +55,7 @@ int createSocket() {
     int socketFD;
     socketFD = socket(AF_INET, SOCK_STREAM, 0);
     if(socketFD == -1) {
-        perror("error opening socket");
+        perror("error opening socket\n");
         return -1;
     }
     return socketFD;
@@ -64,7 +63,7 @@ int createSocket() {
 
 int listenSocket(int socketFD, int sizeOfQueue) {
     if ((listen(socketFD, sizeOfQueue)) != 0) {
-        perror("error listening to socket");
+        perror("error listening to socket\n");
         return -1;
     }
     return 1;
